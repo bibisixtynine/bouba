@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+
+    <title>Rainbow CoDrawing</title>
+    
+    <meta name="description" content="Rainbow Co-Drawing App" />
+    <meta name="application-name" content="Rainbow" />
+    <meta name="theme-color" content="#378844" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#378844" media="(prefers-color-scheme: dark)">
+    <link id="favicon" rel="icon" href="https://cdn.glitch.global/e9dd0e1e-4b3f-4dde-8529-ef27526840fe/bouba192.png?v=1703020087930" />
+    <meta name="viewport" content="viewport-fit=cover, user-scalable=no, width=device-width, initial-scale=1, maximum-scale=1" />
+
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json" />
+    
+    <!-- PWA - apple specific -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="WebSockets demo" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="apple-touch-icon" href="https://cdn.glitch.global/e9dd0e1e-4b3f-4dde-8529-ef27526840fe/bouba192.png?v=1703020087930" />
+    
+    <!-- PWA - microsoft specific -->
+    <meta name="msapplication-TileColor" content="#0000FF" />
+    <meta name="msapplication-TileImage" content="https://cdn.glitch.global/e9dd0e1e-4b3f-4dde-8529-ef27526840fe/bouba192.png?v=1703020087930" />
+
+    
+    <!-- if not running in localhost or file, assure running https -->
+    <script>
+      if (window.location.protocol == "https:") {
+        console.log("🔒 Running in https");
+      } else if (
+        window.location.protocol !== "https:" &&
+        window.location.hostname !== "localhost" &&
+        window.location.protocol !== "file:"
+      ) {
+        window.location.protocol = "https";
+        console.log("🔒 Enforcing https");
+      } else {
+        console.log("🛠️ Running in localhost or file, not enforcing https");
+      }
+    </script>
+    
+    <script>
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker
+            .register("/sw.js")
+            .then((registration) => {
+              console.log(
+                "Service Worker registered with scope:",
+                registration.scope
+              );
+            })
+            .catch((error) => {
+              console.error("Service Worker registration failed:", error);
+            });
+        });
+      }
+    </script>
+    
+    
+    <!-- stylesheet -->
+    <style>
+      html {
+        /*min-height: calc(100% + env(safe-area-inset-top));
+        padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);*/
+        height: 100vh;
+        width: 100vw;
+      }
+      body {
+        height: 100vh;
+        width: 100vw;
+        background-color: black;
+        color: red;
+        text-align: center;
+        font-size: 24px;
+        padding: 100px;
+        margin: 0;
+        overflow: hidden;
+      }
+      canvas {
+        background-color: transparent;
+        position: absolute;
+        top: 0;
+        left: 0;
+        z-index: 1000;
+      }
+    </style>
+    
+  </head>
+  
+
+  
+  
+  <body>
+    
+    <canvas id="canvas"></canvas>
+    
+    <script>
+      const websocketServerURL = `wss://${window.location.hostname}`
+      // const websocketServerURL = "wss://bouba.glitch.me"
+      
+      // Initialize variables
+      const canvas = document.getElementById("canvas");
+      const context = canvas.getContext("2d");
+      let isConnected = false;
+      let ws;
+
+      // 0) COLOR GENERATORS
+      function rainbowColorGenerator() {
+        let hue = 0;
+
+        return function () {
+          // Convert HSL color to RGB for web display
+          const rgbColor = hslToRgb(hue / 360, 1, 0.5);
+
+          // Convert RGB to hexadecimal format
+          const hexColor = rgbToHex(rgbColor[0], rgbColor[1], rgbColor[2]);
+
+          // Increment the hue for the next call
+          hue = (hue + 1) % 360;
+
+          return `#${hexColor}`;
+        };
+      }
+
+      // Function to convert HSL to RGB
+      function hslToRgb(h, s, l) {
+        let r, g, b;
+
+        if (s === 0) {
+          r = g = b = l; // Achromatic
+        } else {
+          const hueToRgb = (p, q, t) => {
+            if (t < 0) t += 1;
+            if (t > 1) t -= 1;
+            if (t < 1 / 6) return p + (q - p) * 6 * t;
+            if (t < 1 / 2) return q;
+            if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+            return p;
+          };
+
+          const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+          const p = 2 * l - q;
+
+          r = hueToRgb(p, q, h + 1 / 3);
+          g = hueToRgb(p, q, h);
+          b = hueToRgb(p, q, h - 1 / 3);
+        }
+
+        return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
+      }
+
+      // Function to convert RGB to hexadecimal format
+      function rgbToHex(r, g, b) {
+        return ((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1);
+      }
+      
+      const getColor = rainbowColorGenerator();
+
+
+      // 1) CANVAS RESIZE
+      function resizeCanvas() {
+        const bodyWidth = document.body.clientWidth;
+        const bodyHeight = document.body.clientHeight;
+        const windowWidth = window.innerWidth;
+        const windowHeight = window.innerHeight;
+
+        // Set canvas dimensions to the maximum of body size and window size
+        canvas.width = Math.max(bodyWidth, windowWidth);
+        canvas.height = Math.max(bodyHeight, windowHeight);
+        if (isConnected) {
+          ws.send("getRecordedCircles");
+        }
+      }
+
+      // Initialize canvas dimensions
+      resizeCanvas();
+
+      // Listen for window resize events
+      window.addEventListener("resize", resizeCanvas);
+
+      // 2) DRAW & INTERPOLATE FUNCTIONS
+      function drawRainbowCircle(x, y, radius) {
+        context.beginPath();
+        context.arc(x, y, radius, 0, 2 * Math.PI);
+        context.fillStyle = getColor();
+        context.fill();
+      }
+
+      // Function to calculate distance between two points
+      function calculateDistance(x1, y1, x2, y2) {
+        return Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+      }
+
+      function drawIntermediateCircles(x1, y1, x2, y2) {
+        const distance = calculateDistance(x1, y1, x2, y2);
+        const step = 2; // Adjust this value for the desired smoothness
+        let t = step;
+
+        while (t < distance) {
+          const ratio = t / distance;
+          const intermediateX = x1 + ratio * (x2 - x1);
+          const intermediateY = y1 + ratio * (y2 - y1);
+          drawRainbowCircle(intermediateX, intermediateY, 10); // Adjust the circle size as needed
+          sendMousePosition(intermediateX, intermediateY); // Send mouse position to server
+          t += step;
+        }
+      }
+
+      // 3) WEBSOCKET CONNECTION
+      function connectWebSocket() {
+        // Depending on the protocol, connect to the WebSocket server
+        if (window.location.protocol == "https:") {
+          ws = new WebSocket(`wss://${window.location.hostname}`);
+        } else {
+          ws = new WebSocket(`ws://localhost:3000`);
+        }
+
+        // WebSocket error handling
+        ws.addEventListener("error", (error) => {
+          console.error("😱 WebSocket error:", error);
+        });
+
+        // WebSocket open
+        ws.addEventListener("open", () => {
+          isConnected = true;
+          console.log("🤓 WebSocket connection established");
+          ws.send("getRecordedCircles");
+        });
+
+        // WebSocket message received
+        ws.addEventListener("message", (event) => {
+          const message = event.data;
+          if (message.startsWith("mousePosition")) {
+            const [, mouseX, mouseY] = message.split(",");
+            drawRainbowCircle(parseInt(mouseX), parseInt(mouseY), 10); // Adjust the circle size as needed
+          } else if (message === "clearCanvas") {
+            context.clearRect(0, 0, canvas.width, canvas.height);
+          } else if (message.startsWith("recordedCircles")) {
+            const circleData = message.split("|")[1];
+            const circleArray = circleData.split(";");
+            circleArray.forEach((circle) => {
+              const [x, y] = circle.split(",");
+              drawRainbowCircle(parseInt(x), parseInt(y), 10); // Adjust the circle size as needed
+            });
+          }
+        });
+
+        // WebSocket close
+        ws.addEventListener("close", () => {
+          isConnected = false;
+          console.log(
+            "🤔 WebSocket connection closed. Reconnecting in 1 second..."
+          );
+          setTimeout(connectWebSocket, 1000);
+        });
+      }
+
+      // Initial WebSocket connection
+      connectWebSocket();
+
+      // 4) SEND MESSAGES & BUFFERING
+      let isBufferingMessages = false;
+      const bufferedMessages = [];
+
+      function sendMousePosition(x, y) {
+        if (isConnected) {
+          ws.send(`mousePosition,${x},${y}`);
+        } else {
+          bufferedMessages.push(`mousePosition,${x},${y}`);
+          isBufferingMessages = true;
+        }
+      }
+
+      function sendClearCanvas() {
+        if (isConnected) {
+          ws.send("clearCanvas");
+        } else {
+          bufferedMessages.push("clearCanvas");
+          isBufferingMessages = true;
+        }
+      }
+
+      // 5) HANDLE MOUSE EVENTS
+      let isMouseDown = false;
+      let lastMouseClickTime = 0;
+      let lastMouseX, lastMouseY;
+
+      canvas.addEventListener("mousedown", (event) => {
+        event.preventDefault();
+        const currentTime = new Date().getTime();
+        if (currentTime - lastMouseClickTime < 300) {
+          sendClearCanvas();
+          return;
+        }
+        lastMouseClickTime = currentTime;
+        const mouseX = event.clientX;
+        const mouseY = event.clientY;
+        /*
+        if (lastMouseX && lastMouseY) {
+          drawIntermediateCircles(lastMouseX, lastMouseY, mouseX, mouseY);
+        }*/
+
+        drawRainbowCircle(mouseX, mouseY, 10); // Adjust the circle size as needed
+        sendMousePosition(mouseX, mouseY);
+        isMouseDown = true;
+        lastMouseX = mouseX;
+        lastMouseY = mouseY;
+      });
+
+      canvas.addEventListener("mousemove", (event) => {
+        if (isMouseDown) {
+          event.preventDefault();
+          const mouseX = event.clientX;
+          const mouseY = event.clientY;
+
+          if (lastMouseX && lastMouseY) {
+            drawIntermediateCircles(lastMouseX, lastMouseY, mouseX, mouseY);
+          }
+
+          drawRainbowCircle(mouseX, mouseY, 10); // Adjust the circle size as needed
+          sendMousePosition(mouseX, mouseY);
+          lastMouseX = mouseX;
+          lastMouseY = mouseY;
+        }
+      });
+
+      canvas.addEventListener("mouseup", () => {
+        isMouseDown = false;
+        lastMouseX = null;
+        lastMouseY = null;
+      });
+
+      // 6) HANDLE TOUCH EVENTS
+      let isTouchDown = false;
+      let lastTouchTime = 0;
+      let lastTouchX, lastTouchY;
+
+      canvas.addEventListener("touchstart", (event) => {
+        event.preventDefault();
+        const currentTime = new Date().getTime();
+        if (currentTime - lastTouchTime < 300) {
+          context.clearRect(0, 0, canvas.width, canvas.height);
+          sendClearCanvas();
+          return;
+        }
+        lastTouchTime = currentTime;
+        const touch = event.touches[0];
+        const touchX = touch.clientX;
+        const touchY = touch.clientY;
+        drawRainbowCircle(touchX, touchY, 10); // Adjust the circle size as needed
+
+        sendMousePosition(touchX, touchY);
+        lastTouchX = touchX;
+        lastTouchY = touchY;
+        isTouchDown = true;
+      });
+
+      canvas.addEventListener("touchmove", (event) => {
+        event.preventDefault();
+        const touch = event.touches[0];
+        const touchX = touch.clientX;
+        const touchY = touch.clientY;
+
+        if (lastTouchX && lastTouchY) {
+          drawIntermediateCircles(lastTouchX, lastTouchY, touchX, touchY);
+        }
+
+        drawRainbowCircle(touchX, touchY, 10); // Adjust the circle size as needed
+        sendMousePosition(touchX, touchY);
+        lastTouchX = touchX;
+        lastTouchY = touchY;
+      });
+
+      canvas.addEventListener("touchup", () => {
+        isTouchDown = false;
+        lastTouchX = null;
+        lastTouchY = null;
+      });
+
+      // 7) Change background color to red if the user is not connected to the WebSocket server
+      setInterval(() => {
+        if (isConnected) {
+          document.body.style.backgroundColor = "black";
+        } else {
+          document.body.style.backgroundColor = "red";
+        }
+      }, 1000);
+      
+    </script>
+    
+  </body>
+  
+</html>

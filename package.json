@@ -1,0 +1,30 @@
+{
+  "name": "glitch-hello-node",
+  "version": "0.1.0",
+  "description": "A simple Node app, instantly up and running. Built to be remixed on Glitch.com.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "canvas": "^2.11.2",
+    "express": "^4.17.1",
+    "http": "0.0.1-security",
+    "pngjs": "^7.0.0",
+    "ws": "^8.0.0",
+    "sharp": "^0.32.6"
+  },
+  "engines": {
+    "node": "14.x"
+  },
+  "repository": {
+    "url": "https://glitch.com/edit/#!/bouba"
+  },
+  "license": "MIT",
+  "keywords": [
+    "node",
+    "glitch",
+    "websocket",
+    "canvas"
+  ]
+}
