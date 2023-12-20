@@ -1,0 +1,15 @@
+{
+  "name": "Rainbow CoDrawing",
+  "short_name": "CoDraw",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#444444",
+  "theme_color": "#444444",
+  "icons": [
+      {
+          "src": "https://cdn.glitch.global/e9dd0e1e-4b3f-4dde-8529-ef27526840fe/bouba192.png?v=1703020087930",
+          "sizes": "192x192",
+          "type": "image/png"
+      }
+  ]
+}
