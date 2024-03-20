@@ -1,3 +1,5 @@
+This project is tested with BrowserStack.
+
 # Rainbow Co-Drawing
 
 - A basic multicolor drawing app that allow multiple user draw on the same board.
