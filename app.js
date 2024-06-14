@@ -8,7 +8,7 @@ const http = require("http");
 const WebSocket = require("ws");
 const fs = require("fs");
 const path = require("path");
-const { createCanvas } = require("canvas");
+// const { createCanvas } = require("canvas");
 
 // 🌐 Create an Express application
 const app = express();
@@ -431,7 +431,7 @@ function handleMousePositionUpdate(ws, mouseX, mouseY) {
   mousePositions.push({ timestamp, x: mouseX, y: mouseY });
   
   // Save mousePositions to a file
-  saveMousePositions();
+  //saveMousePositions();
 
   // Send mouse position to all clients except the emitter client
   sendMousePositionToClientsExceptEmitter(ws, mouseX, mouseY); // Pass ws, mouseX, and mouseY
@@ -439,6 +439,10 @@ function handleMousePositionUpdate(ws, mouseX, mouseY) {
 
 // Clear the canvas and save the drawing
 function clearCanvasAndSaveDrawing() {
+
+  return; // Disable saving the drawing for now
+
+
   const timestamp = Date.now();
   const imageFileName = path.join(drawingsFolder, `${timestamp}.png`);
 
