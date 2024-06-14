@@ -440,9 +440,6 @@ function handleMousePositionUpdate(ws, mouseX, mouseY) {
 // Clear the canvas and save the drawing
 function clearCanvasAndSaveDrawing() {
 
-  return; // Disable saving the drawing for now
-
-
   const timestamp = Date.now();
   const imageFileName = path.join(drawingsFolder, `${timestamp}.png`);
 
