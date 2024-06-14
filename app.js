@@ -8,7 +8,7 @@ const http = require("http");
 const WebSocket = require("ws");
 const fs = require("fs");
 const path = require("path");
-// const { createCanvas } = require("canvas");
+const { createCanvas } = require("canvas");
 
 // 🌐 Create an Express application
 const app = express();
