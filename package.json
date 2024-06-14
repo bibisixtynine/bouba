@@ -8,7 +8,6 @@
   },
   "dependencies": {
     "canvas": "^2.11.2",
-
     "express": "^4.17.1",
     "http": "0.0.1-security",
     "pngjs": "^7.0.0",
